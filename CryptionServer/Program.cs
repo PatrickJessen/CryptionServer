@@ -14,22 +14,13 @@ NetworkStream stream = client.GetStream();
 StreamWriter writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
 StreamReader reader = new StreamReader(stream, Encoding.UTF8);
 
-RSADecrypter rsa = new RSADecrypter();
+RSACrypter rsa = new RSACrypter();
 
-Guid guid = new Guid();
+rsa.GetPublicKey(reader.ReadLine());
+Console.WriteLine("Got public key from client");
 
-// Generate and serialize PublicKey
-StringWriter sw = new StringWriter();
-XmlSerializer xs = new XmlSerializer(typeof(RSAParameters));
-xs.Serialize(sw, rsa.Generate(guid));
-// Send publicKey to client
-writer.WriteLine(sw.ToString());
-string asymmetricInput = reader.ReadLine();
-
-// Get Symmetric key from client
-byte[] symKey = Convert.FromBase64String(asymmetricInput);
-rsa.SetSymmetricKey(rsa.sesKey.Id, symKey);
-Console.WriteLine("Got the key! " + asymmetricInput);
+byte[] buffer = rsa.GenerateAndEncryptSessionKey();
+writer.WriteLine(Convert.ToBase64String(buffer));
 
 // Asymmetric part is done, now we can decrypt text symmetricly
 while (true)
@@ -39,8 +30,10 @@ while (true)
     {
         input = reader.ReadLine();
 
-        string data = rsa.Decrypt(rsa.sesKey.SymmetricKey, Convert.FromBase64String(input));
-        Console.WriteLine("Message from client: " + data);
-        writer.WriteLine("Decrypted data from server: " + data);
+        string decryptedData = rsa.Decrypt(rsa.sesKey.SymmetricKey, Convert.FromBase64String(input));
+        byte[] Encrypt = rsa.EncryptData(rsa.sesKey.SymmetricKey, input);
+        Console.WriteLine("Message from client: " + input);
+        Console.WriteLine("Decrypted message: " + decryptedData);
+        writer.WriteLine(Convert.ToBase64String(rsa.EncryptData(rsa.sesKey.SymmetricKey, "Decrypted data from server: " + decryptedData)));
     }
 }

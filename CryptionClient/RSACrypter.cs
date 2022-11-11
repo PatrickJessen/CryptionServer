@@ -8,35 +8,40 @@ using System.Xml.Serialization;
 
 namespace CryptionClient
 {
-    public class RSAEncrypter
+    public class SessionKey
     {
-        public RSAParameters PublicKey { get; private set; }
-        public RSAParameters PrivateKey { get; private set; }
-        public byte[] MySessionKey { get; private set; }
+        public byte[] SymmetricKey;
+        public RSAParameters PublicKey;
+        public RSAParameters PrivateKey;
+    }
+    public class RSACrypter
+    {
+        public SessionKey MySessionKey { get; private set; }
 
-        public void GetPublicKey(string key)
+        public RSACrypter()
         {
-            StringReader sr = new StringReader(key);
-            //we need a deserializer
-            XmlSerializer xs = new XmlSerializer(typeof(RSAParameters));
-            PublicKey = (RSAParameters)xs.Deserialize(sr);
+            MySessionKey = new SessionKey();
+            Generate();
         }
 
-        public byte[] GenerateAndEncryptSessionKey()
+        public void Generate()
         {
-            using (Aes aes = Aes.Create())
-            {
-                aes.KeySize = aes.LegalKeySizes[0].MaxSize;
-
-                MySessionKey = aes.Key;
-            }
-
             using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider(2048))
             {
-                rsa.ImportParameters(PublicKey);
 
-                byte[] buffer = rsa.Encrypt(MySessionKey, false);
-                return buffer;
+                MySessionKey.PublicKey = rsa.ExportParameters(false);
+                MySessionKey.PrivateKey = rsa.ExportParameters(true);
+
+            }
+        }
+
+        public void SetSymmetricKey(byte[] encryptedKey)
+        {
+            using (RSACryptoServiceProvider rsa = new RSACryptoServiceProvider(2048))
+            {
+                rsa.ImportParameters(MySessionKey.PrivateKey);
+
+                MySessionKey.SymmetricKey = rsa.Decrypt(encryptedKey, false);
             }
         }
 
